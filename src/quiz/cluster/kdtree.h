@@ -80,12 +80,27 @@ struct KdTree
 	std::vector<int> search(std::vector<float> target, float distanceTol)
 	{
 		std::vector<int> ids;
-        Node *current_node = root;
-        while(1){
-            if(distance(current_node->point,target) < distanceTol){
-                ids.push_back(current_node->id);
-                continue;
+        int idx=0;
+        std::vector<boost::shared_ptr<Node> > frontier[2];
+        boost::shared_ptr<Node> root_ptr(root);
+        frontier[idx].push_back(root_ptr);
+        // BFS search
+        while(frontier[idx].size() != 0){
+            int sidx;
+            sidx = (idx == 0 ? 1 : 0);
+            for(auto ptr : frontier[idx]){
+                if(distance(ptr->point,target) < distanceTol){
+                    ids.push_back(ptr->id);
+                    if(ptr->left != NULL){
+                        frontier[sidx].push_back(boost::shared_ptr<Node> (ptr->left));
+                    }
+                    if(ptr->right != NULL){
+                        frontier[sidx].push_back(boost::shared_ptr<Node> (ptr->right));
+                    }
+                }
             }
+            frontier[idx].clear();
+            idx = sidx;
         }
 		return ids;
 	}
