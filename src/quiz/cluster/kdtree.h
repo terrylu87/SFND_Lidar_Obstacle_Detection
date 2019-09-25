@@ -2,7 +2,7 @@
 // Quiz on implementing kd tree
 
 #include "../../render/render.h"
-
+#include <utility>
 
 // Structure to represent node of kd tree
 struct Node
@@ -39,7 +39,6 @@ struct KdTree
             while(1){
                 int idx=depth%2;
                 if(point[idx] < current_node->point[idx]){
-                    //if(point[idx] < (current_node->point)[idx]){
                     // go left
                     if(current_node->left == NULL){
                         current_node->left = n;
@@ -61,7 +60,6 @@ struct KdTree
                 }
             }
         }
-
     }
 
     float distance(std::vector<float> point0, std::vector<float> point1)
@@ -77,13 +75,14 @@ struct KdTree
     }
 
     // return a list of point ids in the tree that are within distance of target
-	std::vector<int> search(std::vector<float> target, float distanceTol)
+	std::vector<int> bfs_search(std::vector<float> target, float distanceTol)
 	{
 		std::vector<int> ids;
         int idx=0;
-        std::vector<boost::shared_ptr<Node> > frontier[2];
-        boost::shared_ptr<Node> root_ptr(root);
-        frontier[idx].push_back(root_ptr);
+        std::vector<Node* > frontier[2];
+        //Node* root_ptr(root);
+        //frontier[idx].push_back(root_ptr);
+        frontier[idx].push_back(root);
         // BFS search
         while(frontier[idx].size() != 0){
             int sidx;
@@ -92,10 +91,10 @@ struct KdTree
                 if(distance(ptr->point,target) < distanceTol){
                     ids.push_back(ptr->id);
                     if(ptr->left != NULL){
-                        frontier[sidx].push_back(boost::shared_ptr<Node> (ptr->left));
+                        frontier[sidx].push_back(ptr->left);
                     }
                     if(ptr->right != NULL){
-                        frontier[sidx].push_back(boost::shared_ptr<Node> (ptr->right));
+                        frontier[sidx].push_back(ptr->right);
                     }
                 }
             }
@@ -105,6 +104,57 @@ struct KdTree
 		return ids;
 	}
 
+    // range search
+	std::vector<int> search(std::vector<float> target, float distanceTol)
+	{
+        float bx0 = target[0] - distanceTol;
+        float bx1 = target[0] + distanceTol;
+        float by0 = target[1] - distanceTol;
+        float by1 = target[1] + distanceTol;
+		std::vector<int> ids;
+        std::vector<std::pair <Node*, int> > node_stack;
+        node_stack.push_back(std::make_pair(root, 0));
+
+        while(!node_stack.empty())
+        {
+            auto node = node_stack.back();
+
+            node_stack.pop_back();
+
+            int axis = node.second;
+            int next_axis = (node.second + 1) % 2;
+
+            if(node.first->point[0] >= bx0 &&
+               node.first->point[0] <= bx1 &&
+               node.first->point[1] >= by0 &&
+               node.first->point[1] <= by1){
+                float dist = distance(node.first->point,target);
+                // if the node is inside distance tolerance
+                if(dist <= distanceTol){
+                    // record it's id
+                    if(node.first->point[0]!=target[0] || node.first->point[1]!=target[1]){
+                        ids.push_back(node.first->id);
+                    }
+                }
+            }
+            // explore left and right based on current axis
+            if((target[axis]+distanceTol) > node.first->point[axis]){
+                if(node.first->right){
+                    node_stack.push_back(std::make_pair(
+                                             node.first->right,
+                                             next_axis));
+                }
+            }
+            if((target[axis]-distanceTol) < node.first->point[axis]){
+                if(node.first->left){
+                    node_stack.push_back(std::make_pair(
+                                             node.first->left,
+                                             next_axis));
+                }
+            }
+        }
+        return ids;
+    }
 };
 
 
