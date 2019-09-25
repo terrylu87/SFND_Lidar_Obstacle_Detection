@@ -1,0 +1,197 @@
+/* \author Aaron Brown */
+// Quiz on implementing kd tree
+
+#include "../../render/render.h"
+#include <utility>
+
+// #define LOG
+// Structure to represent node of kd tree
+struct Node
+{
+	std::vector<float> point;
+	int id;
+	Node* left;
+	Node* right;
+
+	Node(std::vector<float> arr, int setId)
+	:	point(arr), id(setId), left(NULL), right(NULL)
+	{}
+};
+
+struct KdTree
+{
+	Node* root;
+
+	KdTree()
+	: root(NULL)
+	{}
+
+	void insert(std::vector<float> point, int id)
+	{
+		// TODO: Fill in this function to insert a new point into the tree
+		// the function should create a new node and place correctly with in the root 
+#ifdef LOG
+        std::cout << "insert id : " << id << std::endl;
+#endif
+        Node *n = new Node(point,id);
+        if(root==NULL){
+            root = n;
+        }else{
+            int depth = 0;
+            //bool inserted = false;
+            Node *current_node = root;
+            while(1){
+                int idx=depth%2;
+                if(point[idx] < current_node->point[idx]){
+                    //if(point[idx] < (current_node->point)[idx]){
+                    // go left
+                    if(current_node->left == NULL){
+#ifdef LOG
+                        std::cout << "+++ insert node " << id
+                                  << " on left of node "
+                                  << current_node->id << endl;
+#endif
+                        current_node->left = n;
+                        break;
+                    }else{
+                        current_node = current_node->left;
+                        ++depth;
+                        //continue;
+                    }
+                }else{
+                    if(current_node->right == NULL){
+#ifdef LOG
+                        std::cout << "+++ insert node " << id
+                                  << " on right of node "
+                                  << current_node->id << endl;
+#endif
+                        current_node->right = n;
+                        break;
+                    }else{
+                        current_node = current_node->right;
+                        ++depth;
+                        //continue;
+                    }
+                }
+            }
+        }
+
+    }
+
+    float distance(std::vector<float> point0, std::vector<float> point1)
+    {
+        int dims = point0.size();
+        float dist = 0;
+        int i;
+        for(i=0;i<dims;++i){
+            dist += pow(point0[i]-point1[i],2);
+        }
+        dist = sqrt(dist);
+        return dist;
+    }
+
+    // return a list of point ids in the tree that are within distance of target
+	std::vector<int> bfs_search(std::vector<float> target, float distanceTol)
+	{
+		std::vector<int> ids;
+        int idx=0;
+        std::vector<Node* > frontier[2];
+        //Node* root_ptr(root);
+        //frontier[idx].push_back(root_ptr);
+        frontier[idx].push_back(root);
+        // BFS search
+        while(frontier[idx].size() != 0){
+            int sidx;
+            sidx = (idx == 0 ? 1 : 0);
+            for(auto ptr : frontier[idx]){
+                if(distance(ptr->point,target) < distanceTol){
+                    ids.push_back(ptr->id);
+                    if(ptr->left != NULL){
+                        frontier[sidx].push_back(ptr->left);
+                    }
+                    if(ptr->right != NULL){
+                        frontier[sidx].push_back(ptr->right);
+                    }
+                }
+            }
+            frontier[idx].clear();
+            idx = sidx;
+        }
+		return ids;
+	}
+
+	std::vector<int> search(std::vector<float> target, float distanceTol)
+	{
+        float bx0 = target[0] - distanceTol;
+        float bx1 = target[0] + distanceTol;
+        float by0 = target[1] - distanceTol;
+        float by1 = target[1] + distanceTol;
+		std::vector<int> ids;
+        std::vector<std::pair <Node*, int> > node_stack;
+        //node_stack.push_back(root_node);
+        node_stack.push_back(std::make_pair(root, 0));
+
+        while(!node_stack.empty())
+        {
+            auto node = node_stack.back();
+
+            node_stack.pop_back();
+
+            //std::cout << "length : " << node_stack.size() << std::endl;
+#ifdef LOG
+            std::cout << "------ check id : " << node.first->id << ", point : "
+                      << node.first->point[0] << ", "
+                      << node.first->point[1] << ", " << std::endl;
+#endif
+            int axis = node.second;
+            int next_axis = (node.second + 1) % 2;
+
+            if(node.first->point[0] >= bx0 &&
+               node.first->point[0] <= bx1 &&
+               node.first->point[1] >= by0 &&
+               node.first->point[1] <= by1){
+                float dist = distance(node.first->point,target);
+                // if the node is inside distance tolerance
+                if(dist <= distanceTol){
+                    // record it's id
+                    if(node.first->point[0]!=target[0] || node.first->point[1]!=target[1]){
+                        ids.push_back(node.first->id);
+#ifdef LOG
+                        std::cout << "insert id : " << node.first->id << std::endl;
+#endif
+                    }
+                }
+            }
+            // explore left and right based on current axis
+            if((target[axis]+distanceTol) > node.first->point[axis]){
+                if(node.first->right){
+#ifdef LOG
+                    std::cout << "explore right of node " << node.first->id
+                              << ". right id : " << node.first->right->id << std::endl;
+#endif
+                    node_stack.push_back(std::make_pair(
+                                             node.first->right,
+                                             next_axis));
+                }
+            }
+            if((target[axis]-distanceTol) < node.first->point[axis]){
+                if(node.first->left){
+#ifdef LOG
+                    std::cout << "explore left of node " << node.first->id
+                              << ". left id : " << node.first->left->id << std::endl;
+#endif
+                    node_stack.push_back(std::make_pair(
+                                             node.first->left,
+                                             next_axis));
+                }
+            }
+        }
+        return ids;
+    }
+
+
+};
+
+
+
+
