@@ -4,7 +4,7 @@
 #include <iostream>
 #include <pcl/common/transforms.h>
 #include <pcl/common/pca.h>
-
+#include <pcl/filters/crop_box.h>
 
 //constructor:
 template<typename PointT>
@@ -31,12 +31,28 @@ typename pcl::PointCloud<PointT>::Ptr ProcessPointClouds<PointT>::FilterCloud(ty
     auto startTime = std::chrono::steady_clock::now();
 
     // TODO:: Fill in the function to do voxel grid point reduction and region based filtering
+    typename pcl::PointCloud<PointT>::Ptr cloud_filtered (new pcl::PointCloud<PointT> );
+    typename pcl::PointCloud<PointT>::Ptr cloud_croped (new pcl::PointCloud<PointT> );
+
+    // Create the filtering object voxel grid
+    pcl::VoxelGrid<PointT> sor;
+    //pcl::VoxelGrid<pcl::PCLPointCloud2> sor;
+
+    sor.setInputCloud (cloud);
+    sor.setLeafSize (filterRes, filterRes, filterRes);
+    sor.filter (*cloud_filtered);
+
+    pcl::CropBox<PointT> box;
+    box.setInputCloud(cloud_filtered);
+    box.setMin(minPoint);
+    box.setMax(maxPoint);
+    box.filter(*cloud_croped);
 
     auto endTime = std::chrono::steady_clock::now();
     auto elapsedTime = std::chrono::duration_cast<std::chrono::milliseconds>(endTime - startTime);
     std::cout << "filtering took " << elapsedTime.count() << " milliseconds" << std::endl;
 
-    return cloud;
+    return cloud_croped;
 
 }
 
@@ -78,9 +94,9 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
     int current_max_fit = 0;
     for(i=0;i<maxIterations;++i){
         // Randomly sample subset and fit line
-        pcl::PointXYZ p0 = cloud->at(rand()%cloud_size);
-        pcl::PointXYZ p1 = cloud->at(rand()%cloud_size);
-        pcl::PointXYZ p2 = cloud->at(rand()%cloud_size);
+        PointT p0 = cloud->at(rand()%cloud_size);
+        PointT p1 = cloud->at(rand()%cloud_size);
+        PointT p2 = cloud->at(rand()%cloud_size);
         //cout << "size = " << cloud_size << endl;
         //cout << "r0 = " << rand0 << ", r1 = " << rand1 << endl;
         //cout << p0.x;
@@ -98,7 +114,7 @@ std::pair<typename pcl::PointCloud<PointT>::Ptr, typename pcl::PointCloud<PointT
         // Measure distance between every point and fitted line
         int j;
         for(j=0;j<cloud_size;++j){
-            pcl::PointXYZ point = cloud->at(j);
+            PointT point = cloud->at(j);
             float div = sqrt(A*A+B*B+C*C);
             if(div > 0){
                 float distance = abs(A*point.x+B*point.y+C*point.z+D) / div;
@@ -135,11 +151,11 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
 
     // DONE:: Fill in the function to perform euclidean clustering to group detected obstacles
     // Creating the KdTree object for the search method of the extraction
-    pcl::search::KdTree<pcl::PointXYZ>::Ptr tree (new pcl::search::KdTree<pcl::PointXYZ>);
+    typename pcl::search::KdTree<PointT>::Ptr tree (new pcl::search::KdTree<PointT>);
     tree->setInputCloud (cloud);
 
     std::vector<pcl::PointIndices> cluster_indices;
-    pcl::EuclideanClusterExtraction<pcl::PointXYZ> ec;
+    pcl::EuclideanClusterExtraction<PointT> ec;
     ec.setClusterTolerance (clusterTolerance); // 2cm
     ec.setMinClusterSize (minSize);
     ec.setMaxClusterSize (maxSize);
@@ -150,7 +166,7 @@ std::vector<typename pcl::PointCloud<PointT>::Ptr> ProcessPointClouds<PointT>::C
     int j = 0;
     for (std::vector<pcl::PointIndices>::const_iterator it = cluster_indices.begin (); it != cluster_indices.end (); ++it)
     {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_cluster (new pcl::PointCloud<pcl::PointXYZ>);
+        typename pcl::PointCloud<PointT>::Ptr cloud_cluster (new pcl::PointCloud<PointT>);
         for (std::vector<int>::const_iterator pit = it->indices.begin (); pit != it->indices.end (); ++pit)
         cloud_cluster->points.push_back (cloud->points[*pit]); //*
         cloud_cluster->width = cloud_cluster->points.size ();
