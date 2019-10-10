@@ -209,7 +209,7 @@ template<typename PointT>
 BoxQ ProcessPointClouds<PointT>::xyBoundingBox(typename pcl::PointCloud<PointT>::Ptr cluster)
 {
     // Compute principal directions
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_xy(new pcl::PointCloud<pcl::PointXYZ> ());
+    typename pcl::PointCloud<PointT>::Ptr cloud_xy(new pcl::PointCloud<PointT> ());
     pcl::copyPointCloud(*cluster,*cloud_xy);
     int i;
     for(i=0;i<cloud_xy->size();++i)
