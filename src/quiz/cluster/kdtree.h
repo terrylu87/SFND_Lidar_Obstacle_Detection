@@ -29,6 +29,7 @@ struct KdTree
 	{
 		// TODO: Fill in this function to insert a new point into the tree
 		// the function should create a new node and place correctly with in the root 
+        int dim = point.size();
         Node *n = new Node(point,id);
         if(root==NULL){
             root = n;
@@ -37,7 +38,7 @@ struct KdTree
             //bool inserted = false;
             Node *current_node = root;
             while(1){
-                int idx=depth%2;
+                int idx=depth%dim;
                 if(point[idx] < current_node->point[idx]){
                     // go left
                     if(current_node->left == NULL){
@@ -74,43 +75,21 @@ struct KdTree
         return dist;
     }
 
-    // return a list of point ids in the tree that are within distance of target
-	std::vector<int> bfs_search(std::vector<float> target, float distanceTol)
-	{
-		std::vector<int> ids;
-        int idx=0;
-        std::vector<Node* > frontier[2];
-        //Node* root_ptr(root);
-        //frontier[idx].push_back(root_ptr);
-        frontier[idx].push_back(root);
-        // BFS search
-        while(frontier[idx].size() != 0){
-            int sidx;
-            sidx = (idx == 0 ? 1 : 0);
-            for(auto ptr : frontier[idx]){
-                if(distance(ptr->point,target) < distanceTol){
-                    ids.push_back(ptr->id);
-                    if(ptr->left != NULL){
-                        frontier[sidx].push_back(ptr->left);
-                    }
-                    if(ptr->right != NULL){
-                        frontier[sidx].push_back(ptr->right);
-                    }
-                }
-            }
-            frontier[idx].clear();
-            idx = sidx;
-        }
-		return ids;
-	}
-
     // range search
 	std::vector<int> search(std::vector<float> target, float distanceTol)
 	{
-        float bx0 = target[0] - distanceTol;
-        float bx1 = target[0] + distanceTol;
-        float by0 = target[1] - distanceTol;
-        float by1 = target[1] + distanceTol;
+        int dims = target.size();
+        // [[lower boudary , higher boudary], [], ...]
+        std::vector<std::vector<float> > threshs;
+        int i;
+        for(i=0;i<dims;++i)
+        {
+            std::vector<float> th;
+            th.push_back(target[i] - distanceTol);
+            th.push_back(target[i] + distanceTol);
+            threshs.push_back(th);
+        }
+
 		std::vector<int> ids;
         std::vector<std::pair <Node*, int> > node_stack;
         node_stack.push_back(std::make_pair(root, 0));
@@ -122,14 +101,21 @@ struct KdTree
             node_stack.pop_back();
 
             int axis = node.second;
-            int next_axis = (node.second + 1) % 2;
+            int next_axis = (node.second + 1) % dims;
 
-            if(node.first->point[0] >= bx0 &&
-               node.first->point[0] <= bx1 &&
-               node.first->point[1] >= by0 &&
-               node.first->point[1] <= by1){
+
+            bool inside_box = true;
+            for(i=0;i<dims;++i)
+            {
+                if(node.first->point[i] < threshs[i][0]
+                   || node.first->point[i] > threshs[i][1]){
+                    inside_box = false;
+                    break;
+                }
+            }
+
+            if(inside_box){
                 float dist = distance(node.first->point,target);
-                // if the node is inside distance tolerance
                 if(dist <= distanceTol){
                     // record it's id
                     if(node.first->point[0]!=target[0] || node.first->point[1]!=target[1]){
@@ -137,6 +123,7 @@ struct KdTree
                     }
                 }
             }
+
             // explore left and right based on current axis
             if((target[axis]+distanceTol) > node.first->point[axis]){
                 if(node.first->right){
