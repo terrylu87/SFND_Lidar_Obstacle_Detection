@@ -1,5 +1,7 @@
 /* \author Aaron Brown */
 // Quiz on implementing kd tree
+#ifndef KD_TREE
+#define KD_TREE
 
 #include "../../render/render.h"
 #include <utility>
@@ -145,5 +147,4 @@ struct KdTree
 };
 
 
-
-
+#endif
